@@ -84,7 +84,7 @@ h2{font-size:19px;margin:28px 0 10px}
 
 <div class="disc">
 <b>Disclaimer:</b> Trading forex dan emas berisiko tinggi dan bisa menyebabkan kehilangan seluruh modal. Hasil masa lalu tidak menjamin hasil di masa depan. Konten di channel adalah edukasi, bukan saran keuangan.<br><br>
-<b>Privasi:</b> Halaman ini memakai Meta Pixel untuk mengukur kunjungan dan klik tombol dari iklan. Kami tidak mengumpulkan nama, nomor telepon atau data pribadi lain di halaman ini.
+<b>Privasi:</b> Halaman ini memakai Meta Pixel. Untuk mengukur iklan mana yang membawa anggota baru, kami menyimpan alamat IP, jenis browser (user agent) dan ID klik iklan saat kamu membuka halaman ini, lalu mengirimkannya ke Meta saat kamu bergabung ke channel. ID Telegram kamu hanya disimpan dalam bentuk acak (hash). Kami tidak mengumpulkan nama atau nomor telepon. Data link yang tidak dipakai dihapus setelah 30 hari.
 </div>
 </div>
 <div class="sticky"><a class="btn js-join" href="https://t.me/robysultangoldflip">Join Channel Telegram (Gratis)</a></div>
@@ -97,17 +97,49 @@ var LINKS = {
   "A01": "9-7atk2jM-RmZmE1"
 };
 var ad = (new URLSearchParams(location.search).get("ad") || "").toUpperCase();
-var hash = LINKS[ad];
-var web = hash ? "https://t.me/+" + hash : "https://t.me/robysultangoldflip";
-var tg  = hash ? "tg://join?invite=" + hash : "tg://resolve?domain=robysultangoldflip";
 var ua = navigator.userAgent || "";
 var isAndroid = /Android/i.test(ua);
 var isIOS = /iPhone|iPad|iPod/i.test(ua);
 var inApp = /FBAN|FBAV|FB_IAB|Instagram|FBIOS/i.test(ua);
-// Android: intent:// supaya browser Facebook/Instagram buka aplikasi Telegram terus
-var appLink = isAndroid
-  ? "intent://" + tg.replace("tg://","") + "#Intent;scheme=tg;S.browser_fallback_url=" + encodeURIComponent(web) + ";end"
-  : (isIOS ? tg : web);
+var web, appLink;
+// Bina semua link dari satu hash invite (atau tiada hash = link channel biasa)
+function useHash(hash){
+  web = hash ? "https://t.me/+" + hash : "https://t.me/robysultangoldflip";
+  var tg = hash ? "tg://join?invite=" + hash : "tg://resolve?domain=robysultangoldflip";
+  // Android: intent:// supaya browser Facebook/Instagram buka aplikasi Telegram terus
+  appLink = isAndroid
+    ? "intent://" + tg.replace("tg://","") + "#Intent;scheme=tg;S.browser_fallback_url=" + encodeURIComponent(web) + ";end"
+    : (isIOS ? tg : web);
+  document.querySelectorAll(".js-join").forEach(function(a){ a.href = web; });
+}
+// Mula dengan link statik; kalau link unik siap, tukar ke link unik
+useHash(LINKS[ad]);
+
+// Link unik per pelawat (dicipta bot). Simpan dalam sessionStorage supaya refresh tak cipta link baru.
+function getCookie(n){ var m = document.cookie.match(new RegExp("(?:^|; )" + n + "=([^;]*)")); return m ? decodeURIComponent(m[1]) : ""; }
+(function(){
+  if (!/^[A-Z0-9_-]{1,12}$/.test(ad) || !window.fetch) return;
+  var KEY = "rs_link_" + ad, c = null;
+  try { c = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch(e) {}
+  if (c && c.h && c.x > Date.now()/1000 + 3600) { useHash(c.h); return; }
+  var tries = 0;
+  function go(){
+    // tunggu sekejap cookie _fbp dari Pixel (maks ~1.2 saat)
+    if (!getCookie("_fbp") && tries++ < 12) return setTimeout(go, 100);
+    var ctrl = window.AbortController ? new AbortController() : null;
+    if (ctrl) setTimeout(function(){ ctrl.abort(); }, 5000);
+    fetch("/api/link", {
+      method: "POST", headers: {"content-type": "application/json"},
+      body: JSON.stringify({ad: ad, url: location.href, fbp: getCookie("_fbp"), fbc: getCookie("_fbc")}),
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      if (!j || !j.ok || !j.hash) return;
+      useHash(j.hash);
+      try { sessionStorage.setItem(KEY, JSON.stringify({h: j.hash, x: j.expire_at})); } catch(e) {}
+    }).catch(function(){ /* kekal guna link statik */ });
+  }
+  go();
+})();
 if (inApp) { var h=document.getElementById("inapp-help"); if (h) h.style.display="block"; }
 var sent = false;
 function openTelegram(){
@@ -118,7 +150,6 @@ function openTelegram(){
   }
 }
 document.querySelectorAll(".js-join").forEach(function(a){
-  a.href = web;
   a.addEventListener("click", function(e){
     e.preventDefault();
     if (window.fbq && PIXEL_ID.indexOf("GANTI") === -1 && !sent) {
