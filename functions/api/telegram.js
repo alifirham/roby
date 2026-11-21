@@ -60,8 +60,8 @@ async function handleJoin(context, updateId, cm, userHash, ts) {
     const source = inv ? "link_lain" : "organik";
     const name = inv ? (inv.name || inv.invite_link || "").slice(0, 100) : (cm.via_chat_folder_invite_link ? "folder" : null);
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO events (update_id, type, ts, user_hash, source, invite_name) VALUES (?,?,?,?,?,?)"
-    ).bind(updateId, "join", ts, userHash, source, name).run();
+      "INSERT OR IGNORE INTO events (update_id, type, ts, user_hash, source, invite_name, capi_detail) VALUES (?,?,?,?,?,?,?)"
+    ).bind(updateId, "join", ts, userHash, source, name, inv ? "invite: " + JSON.stringify(inv).slice(0, 400) : null).run();
     return;
   }
 
