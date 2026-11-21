@@ -18,6 +18,7 @@ Landing page iklan Meta ke channel Telegram @robysultangoldflip. Live di https:/
 | `functions/api/report.js` | `GET /api/report?key=..&date=YYYY-MM-DD[&format=text]`: laporan harian waktu Malaysia. |
 | `functions/api/setup-webhook.js` | `GET /api/setup-webhook?key=..`: cipta jadual D1, sambung webhook, semak status bot. `&action=info` = semak sahaja. |
 | `functions/api/capi-resend.js` | `GET /api/capi-resend?key=..[&dry=1]`: hantar semula `Subscribe` yang belum/gagal dihantar (≤ 7 hari). |
+| `functions/api/debug.js` | `GET /api/debug?key=..`: 10 link & 10 event terakhir, untuk semak masalah. |
 | `schema.sql` | Rujukan struktur jadual D1 (dicipta automatik oleh setup-webhook). |
 
 ## Binding & env var (Cloudflare Pages → Settings → Bindings / Variables and Secrets)
@@ -43,6 +44,10 @@ Set untuk **Production** dan **Preview**.
 3. Join dengan akaun ujian → `/api/report?key=..&format=text` tunjuk `B03: 1`.
 4. Dengan `META_TEST_EVENT_CODE` → `Subscribe` muncul di Events Manager → Test Events.
 5. Buang `TELEGRAM_BOT_TOKEN` sementara (redeploy) → butang guna link statik semula.
+
+## Nota penting
+- Akaun Telegram yang pernah join melalui link lain akan dikira melalui link asal itu bila join semula (tingkah laku Telegram). Jadi untuk ujian, guna akaun yang belum pernah join.
+- Webhook bot hanya boleh tunjuk ke satu URL. Selepas merge ke `main`, buka `https://robysultan.pages.dev/api/setup-webhook?key=..` supaya webhook beralih ke production.
 
 ## Nota had
 - Link unik luput sendiri selepas 24 jam, jadi tiada link aktif yang bertimbun. Rekod link tak dipakai > 30 hari dipadam automatik.
