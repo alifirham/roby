@@ -62,6 +62,24 @@ export async function onRequestGet({ request, env }) {
     .bind(range[0], range[1]).first();
   r.links_dicipta = lc ? lc.n : 0;
 
+  // &detail=1 -> senarai setiap join/keluar (tanpa nama; ID = 8 aksara pertama hash ID Telegram)
+  if (url.searchParams.get("detail") === "1") {
+    const ev = await env.DB.prepare(
+      `SELECT ts, type, source, ad, invite_name, capi_status, substr(user_hash,1,8) AS id
+         FROM events WHERE ts >= ? AND ts < ? ORDER BY ts, id`
+    ).bind(range[0], range[1]).all();
+    const label = { iklan: "unik", fallback: "fallback", link_lain: "lain", organik: "organik", lain: "lain" };
+    r.senarai = ev.results.map((e) => ({
+      masa: new Date((e.ts + 8 * 3600) * 1000).toISOString().slice(11, 16),
+      jenis: e.type === "join" ? "JOIN" : "KELUAR",
+      iklan: e.ad || "-",
+      sumber: e.type === "join" ? label[e.source] || e.source : e.ad ? "iklan" : "lain",
+      id: e.id,
+      nota: e.type === "join" && e.source === "iklan" ? "Subscribe: " + (e.capi_status || "menunggu")
+        : e.invite_name || "",
+    }));
+  }
+
   if (url.searchParams.get("format") === "text") {
     const line = (o) => Object.keys(o).sort().map((k) => `  ${k}: ${o[k]}`).join("\n") || "  -";
     const t = [
@@ -80,8 +98,15 @@ export async function onRequestGet({ request, env }) {
       `CAPI Subscribe: berjaya ${r.capi.berjaya}, gagal ${r.capi.gagal}, tiada token ${r.capi.tiada_token}, ulang ${r.capi.ulang}, menunggu ${r.capi.menunggu}`,
       `Link unik dicipta: ${r.links_dicipta}`,
       "",
-    ].join("\n");
-    return new Response(t, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+    ];
+    if (r.senarai) {
+      t.push(`Senarai (${r.senarai.length}):`);
+      for (const e of r.senarai)
+        t.push(`${e.masa}  ${e.jenis.padEnd(6)}  ${e.iklan.padEnd(4)}  ${e.sumber.padEnd(8)}  ${e.id}${e.nota ? "  (" + e.nota + ")" : ""}`);
+      t.push("");
+    }
+    const text = t.join("\n");
+    return new Response(text, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
   }
   return json(r);
 }

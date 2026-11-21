@@ -15,7 +15,7 @@ Landing page iklan Meta ke channel Telegram @robysultangoldflip. Live di https:/
 | `functions/_lib.js` | Kod kongsi: hash, panggil Telegram, hantar CAPI, jadual D1. |
 | `functions/api/link.js` | `POST/GET /api/link?ad=B03`: cipta link unik, simpan IP/UA/fbc/fbp/URL. |
 | `functions/api/telegram.js` | Webhook bot (disahkan dengan `secret_token`). Rekod join/keluar, hantar `Subscribe`. |
-| `functions/api/report.js` | `GET /api/report?key=..&date=YYYY-MM-DD[&format=text]`: laporan harian waktu Malaysia. |
+| `functions/api/report.js` | `GET /api/report?key=..&date=YYYY-MM-DD[&format=text]`: laporan harian waktu Malaysia. Tambah `&detail=1` untuk senarai setiap join/keluar (tanpa nama). |
 | `functions/api/setup-webhook.js` | `GET /api/setup-webhook?key=..`: cipta jadual D1, sambung webhook, semak status bot. `&action=info` = semak sahaja. |
 | `functions/api/capi-resend.js` | `GET /api/capi-resend?key=..[&dry=1]`: hantar semula `Subscribe` yang belum/gagal dihantar (≤ 7 hari). |
 | `functions/api/debug.js` | `GET /api/debug?key=..`: 10 link & 10 event terakhir, untuk semak masalah. |
