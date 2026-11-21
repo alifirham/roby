@@ -17,6 +17,19 @@ export async function onRequest(context) {
     try { body = await request.json(); } catch (_) { body = {}; }
   }
 
+  // Kemas kini cookie Pixel untuk link yang sudah dicipta (dihantar semasa klik)
+  if (body.update) {
+    const h = String(body.update);
+    let fbp = FB_COOKIE.test(body.fbp || "") ? body.fbp : null;
+    let fbc = FB_COOKIE.test(body.fbc || "") ? body.fbc : null;
+    if (/^[\w-]{8,64}$/.test(h) && (fbp || fbc)) {
+      await env.DB.prepare(
+        "UPDATE links SET fbp = COALESCE(fbp, ?), fbc = COALESCE(fbc, ?) WHERE invite_link = ? AND used_at IS NULL"
+      ).bind(fbp, fbc, "https://t.me/+" + h).run();
+    }
+    return json({ ok: true });
+  }
+
   const ad = normAd(body.ad || reqUrl.searchParams.get("ad"));
   if (!ad) return json({ ok: false, error: "ad_tidak_sah" }, 400);
 

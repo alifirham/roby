@@ -117,29 +117,35 @@ useHash(LINKS[ad]);
 
 // Link unik per pelawat (dicipta bot). Simpan dalam sessionStorage supaya refresh tak cipta link baru.
 function getCookie(n){ var m = document.cookie.match(new RegExp("(?:^|; )" + n + "=([^;]*)")); return m ? decodeURIComponent(m[1]) : ""; }
+var uniqHash = "", pending = false, waiters = [];
+function linkReady(){ pending = false; var w = waiters; waiters = []; w.forEach(function(f){ f(); }); }
 (function(){
   if (!/^[A-Z0-9_-]{1,12}$/.test(ad) || !window.fetch) return;
   var KEY = "rs_link_" + ad, c = null;
   try { c = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch(e) {}
-  if (c && c.h && c.x > Date.now()/1000 + 3600) { useHash(c.h); return; }
-  var tries = 0;
-  function go(){
-    // tunggu sekejap cookie _fbp dari Pixel (maks ~1.2 saat)
-    if (!getCookie("_fbp") && tries++ < 12) return setTimeout(go, 100);
-    var ctrl = window.AbortController ? new AbortController() : null;
-    if (ctrl) setTimeout(function(){ ctrl.abort(); }, 5000);
-    fetch("/api/link", {
-      method: "POST", headers: {"content-type": "application/json"},
-      body: JSON.stringify({ad: ad, url: location.href, fbp: getCookie("_fbp"), fbc: getCookie("_fbc")}),
-      signal: ctrl ? ctrl.signal : undefined
-    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
-      if (!j || !j.ok || !j.hash) return;
-      useHash(j.hash);
+  if (c && c.h && c.x > Date.now()/1000 + 3600) { uniqHash = c.h; useHash(c.h); return; }
+  pending = true;
+  var ctrl = window.AbortController ? new AbortController() : null;
+  if (ctrl) setTimeout(function(){ ctrl.abort(); }, 5000);
+  fetch("/api/link", {
+    method: "POST", headers: {"content-type": "application/json"},
+    body: JSON.stringify({ad: ad, url: location.href, fbp: getCookie("_fbp"), fbc: getCookie("_fbc")}),
+    signal: ctrl ? ctrl.signal : undefined
+  }).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+    if (j && j.ok && j.hash) {
+      uniqHash = j.hash; useHash(j.hash);
       try { sessionStorage.setItem(KEY, JSON.stringify({h: j.hash, x: j.expire_at})); } catch(e) {}
-    }).catch(function(){ /* kekal guna link statik */ });
-  }
-  go();
+    }
+    linkReady();
+  }).catch(linkReady); // gagal: kekal guna link statik
 })();
+// Cookie Pixel (_fbp/_fbc) mungkin belum ada semasa link dicipta; hantar semasa klik
+function sendCookies(){
+  if (!uniqHash || !navigator.sendBeacon) return;
+  var fbp = getCookie("_fbp"), fbc = getCookie("_fbc");
+  if (!fbp && !fbc) return;
+  try { navigator.sendBeacon("/api/link", new Blob([JSON.stringify({update: uniqHash, fbp: fbp, fbc: fbc})], {type: "application/json"})); } catch(e) {}
+}
 if (inApp) { var h=document.getElementById("inapp-help"); if (h) h.style.display="block"; }
 var sent = false;
 function openTelegram(){
@@ -149,14 +155,24 @@ function openTelegram(){
     setTimeout(function(){ if (!document.hidden) location.href = web; }, 1500);
   }
 }
+// Kalau link unik masih dalam proses, tunggu sekejap (maks 1 saat) sebelum buka Telegram
+function whenLinkReady(cb){
+  if (!pending) return cb();
+  var done = false;
+  function go(){ if (!done) { done = true; cb(); } }
+  waiters.push(go); setTimeout(go, 1000);
+}
 document.querySelectorAll(".js-join").forEach(function(a){
   a.addEventListener("click", function(e){
     e.preventDefault();
-    if (window.fbq && PIXEL_ID.indexOf("GANTI") === -1 && !sent) {
-      sent = true;
-      fbq('track', 'Lead', {content_name: ad || "direct"});
-      setTimeout(openTelegram, 300);
-    } else { openTelegram(); }
+    var lead = window.fbq && PIXEL_ID.indexOf("GANTI") === -1 && !sent;
+    if (lead) { sent = true; fbq('track', 'Lead', {content_name: ad || "direct"}); }
+    var t0 = Date.now();
+    whenLinkReady(function(){
+      sendCookies();
+      // beri Pixel ~300ms untuk hantar Lead (jika belum berlalu)
+      setTimeout(openTelegram, lead ? Math.max(0, 300 - (Date.now() - t0)) : 0);
+    });
   });
 });
 </script>
