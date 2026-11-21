@@ -22,7 +22,7 @@ export async function onRequestGet({ request, env }) {
     ok: true,
     date,
     zon: "waktu Malaysia (UTC+8)",
-    join: { jumlah: 0, iklan_jumlah: 0, ikut_iklan: {}, lain_jumlah: 0, lain_ikut_link: {}, organik: 0 },
+    join: { jumlah: 0, iklan_meta_jumlah: 0, iklan_meta_ikut_iklan: {}, iklan_jumlah: 0, ikut_iklan: {}, fallback_jumlah: 0, fallback_ikut_iklan: {}, lain_jumlah: 0, lain_ikut_link: {}, organik: 0 },
     keluar: { jumlah: 0, ikut_iklan: {}, lain: 0 },
     bersih: 0,
     capi: { berjaya: 0, gagal: 0, tiada_token: 0, ulang: 0, menunggu: 0 },
@@ -36,6 +36,9 @@ export async function onRequestGet({ request, env }) {
         r.join.iklan_jumlah += x.n;
         r.join.ikut_iklan[x.ad] = (r.join.ikut_iklan[x.ad] || 0) + x.n;
         if (x.capi in r.capi) r.capi[x.capi] += x.n;
+      } else if (x.source === "fallback") {
+        r.join.fallback_jumlah += x.n;
+        r.join.fallback_ikut_iklan[x.ad] = (r.join.fallback_ikut_iklan[x.ad] || 0) + x.n;
       } else if (x.source === "link_lain") {
         r.join.lain_jumlah += x.n;
         const k = x.name || "(tanpa nama)";
@@ -51,6 +54,9 @@ export async function onRequestGet({ request, env }) {
     }
   }
   r.bersih = r.join.jumlah - r.keluar.jumlah;
+  r.join.iklan_meta_jumlah = r.join.iklan_jumlah + r.join.fallback_jumlah;
+  for (const o of [r.join.ikut_iklan, r.join.fallback_ikut_iklan])
+    for (const k in o) r.join.iklan_meta_ikut_iklan[k] = (r.join.iklan_meta_ikut_iklan[k] || 0) + o[k];
 
   const lc = await env.DB.prepare("SELECT COUNT(*) AS n FROM links WHERE created_at >= ? AND created_at < ?")
     .bind(range[0], range[1]).first();
@@ -61,8 +67,10 @@ export async function onRequestGet({ request, env }) {
     const t = [
       `Report ${date} (waktu Malaysia)`,
       `Join jumlah: ${r.join.jumlah}`,
-      `Join dari iklan (link unik): ${r.join.iklan_jumlah}`,
-      line(r.join.ikut_iklan),
+      `Jumlah dari iklan Meta: ${r.join.iklan_meta_jumlah} (link unik ${r.join.iklan_jumlah} + fallback ${r.join.fallback_jumlah})`,
+      Object.keys(r.join.iklan_meta_ikut_iklan).sort().map((k) =>
+        `  ${k}: ${r.join.iklan_meta_ikut_iklan[k]} (unik ${r.join.ikut_iklan[k] || 0} + fallback ${r.join.fallback_ikut_iklan[k] || 0})`
+      ).join("\n") || "  -",
       `Join sumber lain: ${r.join.lain_jumlah} (organik/tanpa link: ${r.join.organik})`,
       line(r.join.lain_ikut_link),
       `Sub keluar: ${r.keluar.jumlah}`,

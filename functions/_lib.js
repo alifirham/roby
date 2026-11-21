@@ -1,5 +1,22 @@
 // Kod kongsi untuk semua endpoint /api/*. Fail ini bukan route (tiada onRequest).
 
+// Link statik per iklan (SAMA dengan LINKS dalam index.html). Kalau tukar LINKS, tukar di sini juga.
+export const STATIC_LINKS = {
+  B01: "NJhU4ecLvyo2MGM9",
+  C01: "yqoM0S3CWTlhYTJl",
+  B03: "74wuphP2Fr5mMzE1",
+  A01: "9-7atk2jM-RmZmE1",
+};
+
+// Telegram sorok hujung link yang bukan dicipta bot (cth. "https://t.me/+74wuphP2...").
+// Padankan awalan itu dengan STATIC_LINKS -> kod iklan, atau null.
+export function staticAdFor(inviteLink) {
+  const m = /\/(?:\+|joinchat\/)([\w-]+)/.exec(String(inviteLink || ""));
+  if (!m || m[1].length < 4) return null;
+  for (const [ad, hash] of Object.entries(STATIC_LINKS)) if (hash.startsWith(m[1])) return ad;
+  return null;
+}
+
 export const LINK_TTL_SECONDS = 24 * 3600;      // link unik luput sendiri selepas 24 jam
 export const MAX_LINKS_PER_IP_PER_HOUR = 20;    // had kasar anti-spam (ramai pengguna mobile kongsi IP)
 export const MYT_OFFSET_SECONDS = 8 * 3600;     // waktu Malaysia UTC+8

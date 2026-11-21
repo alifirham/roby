@@ -49,6 +49,8 @@ Set untuk **Production** dan **Preview**.
 - Akaun Telegram yang pernah join melalui link lain akan dikira melalui link asal itu bila join semula (tingkah laku Telegram). Jadi untuk ujian, guna akaun yang belum pernah join.
 - Webhook bot hanya boleh tunjuk ke satu URL. Selepas merge ke `main`, buka `https://robysultan.pages.dev/api/setup-webhook?key=..` supaya webhook beralih ke production.
 
+- `STATIC_LINKS` dalam `functions/_lib.js` mesti sama dengan `LINKS` dalam `index.html`. Join melalui link statik (fallback) dikira sebagai "fallback" ikut kod iklan dalam report, tapi tidak dihantar ke CAPI.
+
 ## Nota had
 - Link unik luput sendiri selepas 24 jam, jadi tiada link aktif yang bertimbun. Rekod link tak dipakai > 30 hari dipadam automatik.
 - Had kasar 20 link / IP / jam. Lebih dari itu, page guna link statik.

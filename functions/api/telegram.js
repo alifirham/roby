@@ -1,5 +1,5 @@
 // /api/telegram: webhook bot Telegram. Rekod join/keluar channel dan hantar Subscribe ke Meta CAPI.
-import { json, sha256, safeEqual, sendSubscribe } from "../_lib.js";
+import { json, sha256, safeEqual, sendSubscribe, staticAdFor } from "../_lib.js";
 
 function isIn(m) {
   if (!m) return false;
@@ -57,11 +57,13 @@ async function handleJoin(context, updateId, cm, userHash, ts) {
 
   if (!link) {
     // Join bukan dari link unik kita: rekod sahaja, JANGAN hantar CAPI
-    const source = inv ? "link_lain" : "organik";
+    // Link statik iklan (fallback) -> catat kod iklannya; selain itu "link_lain" / "organik"
+    const staticAd = inv ? staticAdFor(inv.invite_link) : null;
+    const source = staticAd ? "fallback" : inv ? "link_lain" : "organik";
     const name = inv ? (inv.name || inv.invite_link || "").slice(0, 100) : (cm.via_chat_folder_invite_link ? "folder" : null);
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO events (update_id, type, ts, user_hash, source, invite_name, capi_detail) VALUES (?,?,?,?,?,?,?)"
-    ).bind(updateId, "join", ts, userHash, source, name, inv ? "invite: " + JSON.stringify({ link: inv.invite_link, name: inv.name, limit: inv.member_limit, revoked: inv.is_revoked }).slice(0, 300) : null).run();
+      "INSERT OR IGNORE INTO events (update_id, type, ts, user_hash, source, ad, invite_name, capi_detail) VALUES (?,?,?,?,?,?,?,?)"
+    ).bind(updateId, "join", ts, userHash, source, staticAd, name, inv ? "invite: " + JSON.stringify({ link: inv.invite_link, name: inv.name, limit: inv.member_limit, revoked: inv.is_revoked }).slice(0, 300) : null).run();
     return;
   }
 
